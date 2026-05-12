@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer,} from "recharts";
 
-const API = import.meta.env.VITE_API_URL;
+const API = import.meta.env.VITE_API_URL || "/api";
 
 export default function DashboardBancoNexus() {
   const [cuenta, setCuenta] = useState("");
@@ -16,43 +16,58 @@ export default function DashboardBancoNexus() {
     try {
       setError("");
 
-      const [resCuenta, resHistorial, resMovimientos] =
-        await Promise.all([
-          fetch(`${API}/cuenta/${cuenta}`),
-          fetch(`${API}/historial/${cuenta}`),
-          fetch(
-            `${API}/cuenta/${cuenta}/transacciones`
-          ),
-        ]);
+      const resCuenta = await fetch(
+        `${API}/cuenta/${cuenta}`
+      );
 
       if (!resCuenta.ok) {
         throw new Error("Cuenta no encontrada");
       }
 
       const cuentaData = await resCuenta.json();
-      const historialData = await resHistorial.json();
-      const movimientosData =
-        await resMovimientos.json();
 
       setDatos(cuentaData);
 
-      const historialFormateado = historialData.map(
-        (item) => ({
+      const transacciones =
+        cuentaData.transacciones || [];
+
+      const historialFormateado = [];
+      let saldoActual = Number(cuentaData.saldo);
+
+      for (const tx of transacciones) {
+        historialFormateado.push({
           fecha: new Date(
-            item.fecha
+            tx.fecha_hora || tx.fecha
           ).toLocaleDateString(),
-          saldo: item.saldo,
-        })
-      );
+          saldo: saldoActual,
+        });
 
-      setHistorial(historialFormateado);
+        if (
+          tx.tipo === "Deposito" ||
+          tx.tipo === "Depósito"
+        ) {
+          saldoActual -= Number(tx.monto || 0);
+        } else if (tx.tipo === "Retiro") {
+          saldoActual += Number(tx.monto || 0);
+        } else if (
+          tx.cuenta_origen === cuentaData.numero_cuenta
+        ) {
+          saldoActual += Number(tx.monto || 0);
+        } else if (
+          tx.cuenta_destino === cuentaData.numero_cuenta
+        ) {
+          saldoActual -= Number(tx.monto || 0);
+        }
+      }
 
-      setMovimientos(
-        movimientosData.transacciones || []
-      );
+      setHistorial(historialFormateado.reverse());
+
+      setMovimientos(transacciones);
     } catch (err) {
       setError(err.message);
       setDatos(null);
+      setHistorial([]);
+      setMovimientos([]);
     }
   };
 
@@ -60,7 +75,6 @@ export default function DashboardBancoNexus() {
     <div style={styles.container}>
       <h1 style={styles.title}>Banco Nexus</h1>
 
-      {/* BUSCADOR */}
       <div style={styles.searchBox}>
         <input
           type="text"
@@ -88,18 +102,17 @@ export default function DashboardBancoNexus() {
 
       {datos && (
         <>
-          {/* TARJETA CLIENTE */}
           <div style={styles.mainCard}>
             <div style={styles.userRow}>
               <div style={styles.avatar}>👤</div>
 
               <div>
                 <h2 style={styles.clientName}>
-                  {datos.cliente?.nombre}
+                  {datos.cliente}
                 </h2>
 
                 <p style={styles.accountText}>
-                  Cuenta: {datos.numeroCuenta}
+                  Cuenta: {datos.numero_cuenta}
                 </p>
               </div>
             </div>
@@ -118,7 +131,6 @@ export default function DashboardBancoNexus() {
             </div>
           </div>
 
-          {/* GRÁFICA */}
           {historial.length > 0 && (
             <div style={styles.card}>
               <h2 style={styles.cardTitle}>
@@ -164,7 +176,6 @@ export default function DashboardBancoNexus() {
             </div>
           )}
 
-          {/* MOVIMIENTOS */}
           <div style={styles.card}>
             <h2 style={styles.cardTitle}>
               Movimientos
@@ -197,7 +208,8 @@ export default function DashboardBancoNexus() {
                     <tr key={index}>
                       <td style={styles.td}>
                         {new Date(
-                          movimiento.fecha
+                          movimiento.fecha_hora ||
+                            movimiento.fecha
                         ).toLocaleDateString()}
                       </td>
 
@@ -215,7 +227,7 @@ export default function DashboardBancoNexus() {
                       </td>
 
                       <td style={styles.td}>
-                        {movimiento.concepto}
+                        {movimiento.descripcion || "-"}
                       </td>
                     </tr>
                   )
