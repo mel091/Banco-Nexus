@@ -2,12 +2,16 @@ services:
   backend:
     depends_on:
       - db
+
     build: ./backend
     container_name: nexus-backend
+
     ports:
       - "3000:3000"
+
     env_file:
       - ./backend/.env
+
     develop:
       watch:
         - path: ./backend/package.json
@@ -20,15 +24,43 @@ services:
           target: /app
           action: sync
 
+  frontend:
+    build: ./frontend
+    container_name: nexus-frontend
+
+    ports:
+      - "5173:5173"
+
+    depends_on:
+      - backend
+
+    env_file:
+      - ./frontend/.env
+
+    develop:
+      watch:
+        - path: ./frontend/package.json
+          action: rebuild
+
+        - path: ./frontend/package-lock.json
+          action: rebuild
+
+        - path: ./frontend
+          target: /app
+          action: sync
+
   db:
     image: mongo
     container_name: mongodb
     restart: always
+
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+
     ports:
       - "27017:27017"
+
     volumes:
       - nexus:/data/db
 
