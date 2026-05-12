@@ -1,18 +1,17 @@
 import dotenv from "dotenv";
-import { MongoClient, ObjectId } from "mongodb";
+import mongoose from "mongoose";
+import { ObjectId } from "mongodb";
+import connectDB from "./config/database.js";
 
 dotenv.config();
 
-const uri = process.env.MONGO_URI || "mongodb://root:secret@localhost:27017";
-const client = new MongoClient(uri);
-
 async function crearBaseDeDatos() {
 	try {
-		await client.connect();
+		await connectDB();
 
 		console.log("✅ Conectado a MongoDB");
 
-		const db = client.db("banco_nexus");
+		const db = mongoose.connection.db;
 
 		await db.collection("clientes").deleteMany({});
 		await db.collection("cuentas").deleteMany({});
@@ -65,6 +64,7 @@ async function crearBaseDeDatos() {
 				estado: true,
             },
 		];
+
 		await db.collection("clientes").insertMany(clientes);
 
 		console.log("✅ Clientes insertados");
@@ -202,7 +202,7 @@ async function crearBaseDeDatos() {
 	} catch (error) {
 		console.error("Error:", error);
 	} finally {
-		await client.close();
+		await mongoose.connection.close();
 		console.log("Conexión cerrada");
 	}
 }
