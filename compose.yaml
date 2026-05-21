@@ -1,7 +1,9 @@
 services:
   backend:
     depends_on:
-      - db
+      - mongo1
+      - mongo2
+      - mongo3
 
     build: ./backend
     container_name: nexus-backend
@@ -49,20 +51,38 @@ services:
           target: /app
           action: sync
 
-  db:
+
+  mongo1:
     image: mongo
-    container_name: mongodb
-    restart: always
-
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-
+    container_name: mongo1
+    hostname: mongo1
     ports:
       - "27017:27017"
-
+    command: mongod --replSet rsBanco
     volumes:
-      - nexus:/data/db
+      - mongo1_data:/data/db
+
+  mongo2:
+    image: mongo
+    container_name: mongo2
+    hostname: mongo2
+    ports:
+      - "27018:27017"
+    command: mongod --replSet rsBanco
+    volumes:
+      - mongo2_data:/data/db
+
+  mongo3:
+    image: mongo
+    container_name: mongo3
+    hostname: mongo3
+    ports:
+      - "27019:27017"
+    command: mongod --replSet rsBanco
+    volumes:
+      - mongo3_data:/data/db
 
 volumes:
-  nexus:
+  mongo1_data:
+  mongo2_data:
+  mongo3_data:
