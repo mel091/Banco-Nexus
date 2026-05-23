@@ -5,26 +5,100 @@ import connectDB from "./config/database.js";
 
 dotenv.config();
 
+const majorityWriteConcern = {
+  writeConcern: {
+    w: "majority",
+    j: true,
+  },
+};
+
+async function verificarIntegridad(
+  db,
+  clientes,
+  cuentas,
+  transacciones
+) {
+  const [clientesPersistidos, cuentasPersistidas, transaccionesPersistidas] =
+    await Promise.all([
+      db.collection("clientes").countDocuments({}),
+      db.collection("cuentas").countDocuments({}),
+      db.collection("transacciones").countDocuments({}),
+    ]);
+
+  if (
+    clientesPersistidos !== clientes.length ||
+    cuentasPersistidas !== cuentas.length ||
+    transaccionesPersistidas !== transacciones.length
+  ) {
+    throw new Error(
+      `Integridad inválida: se esperaban ${clientes.length}/${cuentas.length}/${transacciones.length} documentos y se obtuvieron ${clientesPersistidos}/${cuentasPersistidas}/${transaccionesPersistidas}`
+    );
+  }
+
+  const clientesPorId = new Set(
+    clientes.map((cliente) => cliente.cliente_id.toString())
+  );
+
+  const cuentasPorNumero = new Set(
+    cuentas.map((cuenta) => cuenta.numero_cuenta)
+  );
+
+  for (const cuenta of cuentas) {
+    if (!clientesPorId.has(cuenta.cliente_id.toString())) {
+      throw new Error(
+        `Integridad inválida: la cuenta ${cuenta.numero_cuenta} no referencia un cliente existente`
+      );
+    }
+  }
+
+  for (const transaccion of transacciones) {
+    const origenValido =
+      transaccion.cuenta_origen === "EFECTIVO" ||
+      cuentasPorNumero.has(transaccion.cuenta_origen);
+
+    const destinoValido =
+      transaccion.cuenta_destino === "EFECTIVO" ||
+      cuentasPorNumero.has(transaccion.cuenta_destino);
+
+    if (!origenValido || !destinoValido) {
+      throw new Error(
+        `Integridad inválida: la transacción ${transaccion.transaccion_id.toString()} contiene referencias huérfanas`
+      );
+    }
+  }
+
+  return {
+    clientesPersistidos,
+    cuentasPersistidas,
+    transaccionesPersistidas,
+  };
+}
+
 async function crearBaseDeDatos() {
   try {
     await connectDB();
 
-    console.log("Conectado a MongoDB");
+    console.log("MongoDB connected");
 
     const db = mongoose.connection.db;
 
     // Limpiar colecciones
-    await db.collection("clientes").deleteMany({});
-    await db.collection("cuentas").deleteMany({});
-    await db.collection("transacciones").deleteMany({});
+    await db.collection("clientes").deleteMany({}, majorityWriteConcern);
 
-    // Índice único para cuentas
+    await db.collection("cuentas").deleteMany({}, majorityWriteConcern);
+
+    await db
+      .collection("transacciones")
+      .deleteMany({}, majorityWriteConcern);
+
+    // Índice único
     await db.collection("cuentas").createIndex(
       {
         numero_cuenta: 1,
       },
       {
         unique: true,
+        writeConcern: majorityWriteConcern.writeConcern,
       }
     );
 
@@ -81,7 +155,9 @@ async function crearBaseDeDatos() {
       },
     ];
 
-    await db.collection("clientes").insertMany(clientes);
+    await db
+      .collection("clientes")
+      .insertMany(clientes, majorityWriteConcern);
 
     console.log("Clientes insertados");
 
@@ -138,7 +214,9 @@ async function crearBaseDeDatos() {
       },
     ];
 
-    await db.collection("cuentas").insertMany(cuentas);
+    await db
+      .collection("cuentas")
+      .insertMany(cuentas, majorityWriteConcern);
 
     console.log("Cuentas insertadas");
 
@@ -229,15 +307,28 @@ async function crearBaseDeDatos() {
       },
     ];
 
-    await db.collection("transacciones").insertMany(
-      transacciones
-    );
+    await db
+      .collection("transacciones")
+      .insertMany(transacciones, majorityWriteConcern);
 
     console.log("Transacciones insertadas");
 
+    const integridad = await verificarIntegridad(
+      db,
+      clientes,
+      cuentas,
+      transacciones
+    );
+
+    console.log(
+      `Integridad verificada: ${integridad.clientesPersistidos} clientes, ${integridad.cuentasPersistidas} cuentas y ${integridad.transaccionesPersistidas} transacciones replicadas correctamente`
+    );
+
     console.log("Base de datos Banco Nexus creada correctamente");
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Error:", error.message);
+
+    process.exitCode = 1;
   } finally {
     await mongoose.connection.close();
 
