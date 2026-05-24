@@ -14,43 +14,117 @@ const API =
   import.meta.env.VITE_API_URL || "/api";
 
 export default function DashboardBancoNexus() {
-  const [cuenta, setCuenta] = useState("");
-  const [datos, setDatos] = useState(null);
-  const [historial, setHistorial] = useState([]);
-  const [movimientos, setMovimientos] = useState([]);
-  const [error, setError] = useState("");
+  const [cuenta, setCuenta] =
+    useState("");
 
-  const [monto, setMonto] = useState("");
-  const [mensaje, setMensaje] = useState("");
+  const [datos, setDatos] =
+    useState(null);
 
+  const [historial, setHistorial] =
+    useState([]);
+
+  const [movimientos, setMovimientos] =
+    useState([]);
+
+  const [error, setError] =
+    useState("");
+
+  const [monto, setMonto] =
+    useState("");
+
+  const [mensaje, setMensaje] =
+    useState({ texto: "Sistema conectado", tipo: "success" });
+
+  const [
+    mostrarConfirmacion,
+    setMostrarConfirmacion,
+  ] = useState(false);
+
+  const [tipoOperacion, setTipoOperacion] =
+    useState("");
+
+  // REPLICA SET
+  const [alertaReplica, setAlertaReplica] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [latencia, setLatencia] =
+    useState(null);
+  
+  const getMensajeColor = (tipo) => {
+    if (tipo === "error") return "#f87171";
+    if (tipo === "success") return "#4ade80";
+    return "#ccc";
+  };
+  
+  // CONSULTAR CUENTA
   const consultarCuenta = async () => {
-    if (!cuenta) return;
+    if (!cuenta) {
+      setMensaje({ texto: "Ingresa un número de cuenta", tipo: "error" });
+      return;
+    }
 
     try {
+      setLoading(true);
       setError("");
+      setAlertaReplica("");
+
+      const inicio = Date.now();
 
       const resCuenta = await fetch(
         `${API}/cuenta/${cuenta}`
       );
 
-      if (!resCuenta.ok) {
-        throw new Error(
-          "Cuenta no encontrada"
+      const tiempoRespuesta =
+        Date.now() - inicio;
+
+      setLatencia(tiempoRespuesta);
+
+      // DETECCIÓN DE LATENCIA
+      if (tiempoRespuesta > 3000) {
+        setAlertaReplica(
+          "Alta latencia detectada"
         );
       }
 
-      const cuentaData =
+      // DETECCIÓN DE FAILOVER - Primero verificar status 503
+      if (resCuenta.status === 503) {
+        const errorMsg = "⚠ Nodo primario no disponible. MongoDB Replica Set intentando recuperación.";
+        setAlertaReplica(errorMsg);
+        setMensaje({ texto: "Servicio temporalmente no disponible", tipo: "error" });
+        throw new Error("Servicio temporalmente no disponible");
+      }
+
+      const data =
         await resCuenta.json();
 
-      setDatos(cuentaData);
+      // DETECCIÓN DE FAILOVER por mensaje
+      if (
+        data.message ===
+          "Servicio temporalmente no disponible"
+      ) {
+        const errorMsg = "⚠ Nodo primario no disponible. MongoDB Replica Set intentando recuperación.";
+        setAlertaReplica(errorMsg);
+        setMensaje({ texto: data.message, tipo: "error" });
+        throw new Error(data.message);
+      }
+
+      if (!resCuenta.ok) {
+        throw new Error(data.message);
+      }
+
+      setDatos(data);
+      setMensaje({ texto: "Conectado", tipo: "success" });
 
       const transacciones =
-        cuentaData.transacciones || [];
+        data.transacciones || [];
 
       const historialFormateado = [];
 
       let saldoActual = Number(
-        cuentaData.saldo
+        data.saldo
       );
 
       for (const tx of transacciones) {
@@ -58,6 +132,7 @@ export default function DashboardBancoNexus() {
           fecha: new Date(
             tx.fecha_hora || tx.fecha
           ).toLocaleDateString(),
+
           saldo: saldoActual,
         });
 
@@ -76,14 +151,14 @@ export default function DashboardBancoNexus() {
           );
         } else if (
           tx.cuenta_origen ===
-          cuentaData.numero_cuenta
+          data.numero_cuenta
         ) {
           saldoActual += Number(
             tx.monto || 0
           );
         } else if (
           tx.cuenta_destino ===
-          cuentaData.numero_cuenta
+          data.numero_cuenta
         ) {
           saldoActual -= Number(
             tx.monto || 0
@@ -97,29 +172,43 @@ export default function DashboardBancoNexus() {
 
       setMovimientos(transacciones);
     } catch (err) {
-      setError(err.message);
-
+      // Filtrar el mensaje de error para que solo muestre "Saldo insuficiente"
+      let errorMessage = err.message;
+      if (errorMessage.includes("Fondos insuficientes") || errorMessage.includes("cuenta no encontrada")) {
+        errorMessage = "Saldo insuficiente";
+      }
+      setError(errorMessage);
+      setMensaje({ texto: errorMessage, tipo: "error" });
       setDatos(null);
       setHistorial([]);
       setMovimientos([]);
+    } finally {
+      setLoading(false);
     }
   };
 
+  // OPERACIONES
   const realizarOperacion = async (
     tipo
   ) => {
     try {
-      setMensaje("");
+      setMensaje({ texto: "", tipo: "" });
+      setLoading(true);
+      setAlertaReplica("");
 
       if (
         !monto ||
         Number(monto) <= 0
       ) {
-        setMensaje(
-          "Ingresa un monto válido"
-        );
+        setMensaje({
+          texto: "Ingresa un monto válido",
+          tipo: "error"
+        });
+        setLoading(false);
         return;
       }
+
+      const inicio = Date.now();
 
       const endpoint =
         tipo === "deposito"
@@ -130,10 +219,12 @@ export default function DashboardBancoNexus() {
         `${API}${endpoint}`,
         {
           method: "POST",
+
           headers: {
             "Content-Type":
               "application/json",
           },
+
           body: JSON.stringify({
             cuenta,
             monto: Number(monto),
@@ -142,19 +233,59 @@ export default function DashboardBancoNexus() {
         }
       );
 
+      const tiempoRespuesta =
+        Date.now() - inicio;
+
+      setLatencia(tiempoRespuesta);
+
+      // LATENCIA
+      if (tiempoRespuesta > 3000) {
+        setAlertaReplica(
+          "Replica Set con alta latencia"
+        );
+      }
+
+      // FAILOVER - Primero verificar status 503
+      if (res.status === 503) {
+        const errorMsg = "⚠ Error de conexión con el nodo primario.";
+        setAlertaReplica(errorMsg);
+        setMensaje({ texto: "Servicio temporalmente no disponible", tipo: "error" });
+        throw new Error("Servicio temporalmente no disponible");
+      }
+
       const data = await res.json();
 
-      if (!res.ok) {
+      // FAILOVER por mensaje
+      if (
+        data.message ===
+          "Servicio temporalmente no disponible"
+      ) {
+        const errorMsg = "⚠ Error de conexión con el nodo primario.";
+        setAlertaReplica(errorMsg);
+        setMensaje({ texto: data.message, tipo: "error" });
         throw new Error(data.message);
       }
 
-      setMensaje(data.message);
+      if (!res.ok) {
+        // Filtrar mensajes de error para operaciones
+        let errorMessage = data.message;
+        if (errorMessage && (errorMessage.includes("Fondos insuficientes") || errorMessage.includes("cuenta no encontrada"))) {
+          errorMessage = "Saldo insuficiente";
+        }
+        throw new Error(errorMessage);
+      }
 
+      setMensaje({ texto: data.message, tipo: "success" });
       consultarCuenta();
-
       setMonto("");
     } catch (err) {
-      setMensaje(err.message);
+      let errorMessage = err.message;
+      if (errorMessage.includes("Fondos insuficientes") || errorMessage.includes("cuenta no encontrada")) {
+        errorMessage = "Saldo insuficiente";
+      }
+      setMensaje({ texto: errorMessage, tipo: "error" });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -165,6 +296,7 @@ export default function DashboardBancoNexus() {
           Banco Nexus
         </h1>
 
+        {/* BUSCADOR */}
         <div style={styles.searchBox}>
           <input
             type="text"
@@ -189,6 +321,31 @@ export default function DashboardBancoNexus() {
           </button>
         </div>
 
+        {/* LOADING */}
+        {loading && (
+          <div style={styles.loadingBox}>
+            🔄 Conectando con MongoDB...
+          </div>
+        )}
+
+        {/* ALERTAS */}
+        {alertaReplica && (
+          <div
+            style={styles.alertaReplica}
+          >
+            {alertaReplica}
+          </div>
+        )}
+
+        {/* LATENCIA */}
+        {latencia && (
+          <div style={styles.latencia}>
+            ⏱ Tiempo de respuesta:{" "}
+            {latencia} ms
+          </div>
+        )}
+
+        {/* ERROR */}
         {error && (
           <p style={styles.error}>
             {error}
@@ -197,13 +354,11 @@ export default function DashboardBancoNexus() {
 
         {datos && (
           <>
-            {/* TARJETA PRINCIPAL */}
+            {/* TARJETA */}
             <div style={styles.mainCard}>
               <div style={styles.topSection}>
                 <div style={styles.userRow}>
-                  <div
-                    style={styles.avatar}
-                  >
+                  <div style={styles.avatar}>
                     👤
                   </div>
 
@@ -258,26 +413,19 @@ export default function DashboardBancoNexus() {
 
             {/* OPERACIONES */}
             <div style={styles.card}>
-              <h2
-                style={styles.cardTitle}
-              >
+              <h2 style={styles.cardTitle}>
                 Operaciones
               </h2>
 
               <div
-                style={
-                  styles.operationBox
-                }
+                style={styles.operationBox}
               >
-                <label
-                  style={styles.label}
-                >
+                <label style={styles.label}>
                   Monto:
                 </label>
 
                 <input
                   type="number"
-                  placeholder="1500"
                   value={monto}
                   onChange={(e) =>
                     setMonto(
@@ -288,63 +436,58 @@ export default function DashboardBancoNexus() {
                 />
 
                 <div
-                  style={
-                    styles.buttonsRow
-                  }
+                  style={styles.buttonsRow}
                 >
                   <button
                     style={
                       styles.depositButton
                     }
-                    onClick={() =>
-                      realizarOperacion(
+                    onClick={() => {
+                      setTipoOperacion(
                         "deposito"
-                      )
-                    }
+                      );
+
+                      setMostrarConfirmacion(
+                        true
+                      );
+                    }}
                   >
-                    Realizar
-                    Depósito
+                    Realizar Depósito
                   </button>
 
                   <button
                     style={
                       styles.withdrawButton
                     }
-                    onClick={() =>
-                      realizarOperacion(
+                    onClick={() => {
+                      setTipoOperacion(
                         "retiro"
-                      )
-                    }
+                      );
+
+                      setMostrarConfirmacion(
+                        true
+                      );
+                    }}
                   >
-                    Realizar
-                    Retiro
+                    Realizar Retiro
                   </button>
                 </div>
 
                 <p style={styles.status}>
-              
-                  <span
-                    style={
-                      styles.online
-                    }
-                  >
-                    {" "}
-                    ●{" "}
-                    {mensaje ||
-                      "Conectado correctamente"}
+                  <span style={{ color: getMensajeColor(mensaje.tipo) }}>
+                    ● {mensaje.texto || "Sistema conectado"}
                   </span>
                 </p>
               </div>
             </div>
 
-            {/* GRÁFICA */}
+            {/* GRAFICA */}
             {historial.length > 0 && (
               <div style={styles.card}>
                 <h2
                   style={styles.cardTitle}
                 >
-                  Evolución del
-                  saldo
+                  Evolución del saldo
                 </h2>
 
                 <ResponsiveContainer
@@ -376,8 +519,10 @@ export default function DashboardBancoNexus() {
                       contentStyle={{
                         backgroundColor:
                           "#111",
+
                         border:
                           "1px solid #7e22ce",
+
                         color: "#fff",
                       }}
                     />
@@ -398,9 +543,7 @@ export default function DashboardBancoNexus() {
 
             {/* TABLA */}
             <div style={styles.card}>
-              <h2
-                style={styles.cardTitle}
-              >
+              <h2 style={styles.cardTitle}>
                 Movimientos
               </h2>
 
@@ -410,25 +553,20 @@ export default function DashboardBancoNexus() {
                     <th style={styles.th}>
                       Fecha
                     </th>
-
                     <th style={styles.th}>
                       Tipo
                     </th>
-
                     <th style={styles.th}>
                       Monto
                     </th>
-
                     <th style={styles.th}>
                       Sucursal
                     </th>
-
                     <th style={styles.th}>
                       Concepto
                     </th>
                   </tr>
                 </thead>
-
                 <tbody>
                   {movimientos.map(
                     (
@@ -444,13 +582,13 @@ export default function DashboardBancoNexus() {
                               movimiento.fecha
                           ).toLocaleDateString()}
                         </td>
-
                         <td
                           style={styles.td}
                         >
-                          {movimiento.tipo}
+                          {
+                            movimiento.tipo
+                          }
                         </td>
-
                         <td
                           style={styles.td}
                         >
@@ -461,7 +599,6 @@ export default function DashboardBancoNexus() {
                             "es-MX"
                           )}
                         </td>
-
                         <td
                           style={styles.td}
                         >
@@ -474,7 +611,6 @@ export default function DashboardBancoNexus() {
                               "CDMX"}
                           </span>
                         </td>
-
                         <td
                           style={styles.td}
                         >
@@ -487,6 +623,80 @@ export default function DashboardBancoNexus() {
                 </tbody>
               </table>
             </div>
+
+            {/* MODAL */}
+            {mostrarConfirmacion && (
+              <div
+                style={
+                  styles.modalOverlay
+                }
+              >
+                <div style={styles.modal}>
+                  <h2
+                    style={
+                      styles.modalTitle
+                    }
+                  >
+                    Confirmar operación
+                  </h2>
+
+                  <p
+                    style={
+                      styles.modalText
+                    }
+                  >
+                    ¿Deseas realizar{" "}
+                    {tipoOperacion ===
+                    "deposito"
+                      ? "el depósito"
+                      : "el retiro"}{" "}
+                    de $
+                    {Number(
+                      monto
+                    ).toLocaleString(
+                      "es-MX"
+                    )}
+                    ?
+                  </p>
+
+                  <div
+                    style={
+                      styles.modalButtons
+                    }
+                  >
+                    <button
+                      style={
+                        styles.cancelButton
+                      }
+                      onClick={() =>
+                        setMostrarConfirmacion(
+                          false
+                        )
+                      }
+                    >
+                      Cancelar
+                    </button>
+
+                    <button
+                      style={
+                        styles.confirmButton
+                      }
+                      onClick={() => {
+                        realizarOperacion(
+                          tipoOperacion
+                        );
+
+                        setMostrarConfirmacion(
+                          false
+                        );
+                      }}
+                    >
+                      Confirmar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -546,6 +756,35 @@ const styles = {
     cursor: "pointer",
   },
 
+  loadingBox: {
+    backgroundColor: "#1e1b4b",
+    border: "1px solid #6366f1",
+    padding: "15px",
+    borderRadius: "12px",
+    marginBottom: "20px",
+    color: "#c7d2fe",
+    fontWeight: "bold",
+  },
+
+  alertaReplica: {
+    backgroundColor: "#7f1d1d",
+    border: "1px solid #ef4444",
+    padding: "15px",
+    borderRadius: "12px",
+    marginBottom: "20px",
+    color: "#fecaca",
+    fontWeight: "bold",
+  },
+
+  latencia: {
+    backgroundColor: "#1f2937",
+    border: "1px solid #374151",
+    padding: "12px",
+    borderRadius: "12px",
+    marginBottom: "20px",
+    color: "#d1d5db",
+  },
+
   mainCard: {
     backgroundColor: "#111",
     border: "1px solid #7e22ce",
@@ -556,8 +795,7 @@ const styles = {
 
   topSection: {
     display: "flex",
-    justifyContent:
-      "space-between",
+    justifyContent: "space-between",
     alignItems: "center",
     flexWrap: "wrap",
     gap: "20px",
@@ -604,6 +842,22 @@ const styles = {
     fontSize: "20px",
   },
 
+  card: {
+    backgroundColor: "#111",
+    border: "1px solid #7e22ce",
+    borderRadius: "20px",
+    padding: "20px",
+    marginBottom: "25px",
+    overflowX: "auto",
+  },
+
+  cardTitle: {
+    marginBottom: "20px",
+    color: "#c084fc",
+    fontSize: "22px",
+    fontWeight: "bold",
+  },
+
   operationBox: {
     display: "flex",
     flexDirection: "column",
@@ -612,7 +866,6 @@ const styles = {
 
   label: {
     color: "#ccc",
-    fontSize: "15px",
   },
 
   buttonsRow: {
@@ -651,27 +904,10 @@ const styles = {
   status: {
     textAlign: "center",
     color: "#ccc",
-    marginTop: "10px",
   },
 
   online: {
     color: "#4ade80",
-  },
-
-  card: {
-    backgroundColor: "#111",
-    border: "1px solid #7e22ce",
-    borderRadius: "20px",
-    padding: "20px",
-    marginBottom: "25px",
-    overflowX: "auto",
-  },
-
-  cardTitle: {
-    marginBottom: "20px",
-    color: "#c084fc",
-    fontSize: "22px",
-    fontWeight: "bold",
   },
 
   table: {
@@ -689,7 +925,7 @@ const styles = {
   td: {
     padding: "12px",
     borderBottom: "1px solid #222",
-    color: "#ffffff",
+    color: "#fff",
   },
 
   badge: {
@@ -704,5 +940,67 @@ const styles = {
   error: {
     color: "#f87171",
     marginBottom: "20px",
+    fontWeight: "bold",
+  },
+
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    backgroundColor:
+      "rgba(0,0,0,0.7)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 999,
+  },
+
+  modal: {
+    backgroundColor: "#111",
+    border: "1px solid #7e22ce",
+    borderRadius: "20px",
+    padding: "30px",
+    width: "90%",
+    maxWidth: "400px",
+    textAlign: "center",
+  },
+
+  modalTitle: {
+    color: "#c084fc",
+    marginBottom: "15px",
+  },
+
+  modalText: {
+    color: "#ddd",
+    marginBottom: "25px",
+    fontSize: "16px",
+  },
+
+  modalButtons: {
+    display: "flex",
+    gap: "15px",
+    justifyContent: "center",
+  },
+
+  cancelButton: {
+    padding: "12px 20px",
+    border: "none",
+    borderRadius: "10px",
+    backgroundColor: "#333",
+    color: "white",
+    cursor: "pointer",
+  },
+
+  confirmButton: {
+    padding: "12px 20px",
+    border: "none",
+    borderRadius: "10px",
+    background:
+      "linear-gradient(90deg,#7e22ce,#a855f7)",
+    color: "white",
+    fontWeight: "bold",
+    cursor: "pointer",
   },
 };
