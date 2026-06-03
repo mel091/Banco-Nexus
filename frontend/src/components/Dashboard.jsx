@@ -10,35 +10,56 @@ import {
 } from "recharts";
 import styles from "../styles/styles";
 import Campo from "./Campo";
-import { fmt, fmtFecha, getMensajeColor, MOVIMIENTOS_MOCK } from "../helpers";
+import { fmt, fmtFecha, getMensajeColor } from "../helpers";
 
 export default function Dashboard({
   usuario,
   setUsuario,
   showToast,
+  fetchAuth,
 }) {
   const [movimientos, setMovimientos] = useState([]);
   const [historial, setHistorial] = useState([]);
-  const [monto, setMonto] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [mensaje, setMensaje] = useState({
-    texto: "Sistema conectado",
-    tipo: "success",
+    texto: "",
+    tipo: "",
   });
-  const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
-  const [tipoOperacion, setTipoOperacion] = useState("");
 
   useEffect(() => {
-    cargarMovimientos();
+    cargarDatos();
   }, []);
 
-  const cargarMovimientos = () => {
-    setMovimientos(MOVIMIENTOS_MOCK);
-    buildHistorial(MOVIMIENTOS_MOCK);
+  const cargarDatos = async () => {
+    setLoading(true);
+    try {
+      // Cargar saldo actualizado
+      const resDash = await fetchAuth("/accounts/dashboard");
+      if (resDash.ok) {
+        const dash = await resDash.json();
+        setUsuario((prev) => ({
+          ...prev,
+          saldo: dash.saldo_disponible,
+          numero_cuenta: dash.numero_cuenta,
+        }));
+      }
+
+      // Cargar historial de transacciones
+      const resTx = await fetchAuth("/accounts/transactions");
+      if (resTx.ok) {
+        const txs = await resTx.json();
+        setMovimientos(txs);
+        buildHistorial(txs, usuario?.saldo ?? 0);
+      }
+    } catch (err) {
+      setMensaje({ texto: "Error al cargar los datos", tipo: "error" });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const buildHistorial = (txs) => {
-    let sal = Number(usuario?.saldo || 0);
+  const buildHistorial = (txs, saldoActual) => {
+    let sal = Number(saldoActual || 0);
     const hist = [];
 
     for (const tx of txs) {
@@ -61,43 +82,6 @@ export default function Dashboard({
     }
 
     setHistorial(hist.reverse());
-  };
-
-  const realizarOperacion = async (tipo) => {
-    if (!monto || Number(monto) <= 0) {
-      setMensaje({ texto: "Ingresa un monto válido", tipo: "error" });
-      return;
-    }
-
-    setLoading(true);
-
-    setTimeout(() => {
-      const nuevoSaldo =
-        tipo === "deposito"
-          ? Number(usuario.saldo) + Number(monto)
-          : Number(usuario.saldo) - Number(monto);
-
-      if (tipo === "retiro" && nuevoSaldo < 0) {
-        setMensaje({ texto: "Saldo insuficiente", tipo: "error" });
-        showToast("Saldo insuficiente", "error");
-        setLoading(false);
-        return;
-      }
-
-      setUsuario({
-        ...usuario,
-        saldo: nuevoSaldo,
-      });
-
-      setMensaje({
-        texto: "Operación exitosa",
-        tipo: "success",
-      });
-
-      showToast("Operación exitosa");
-      setMonto("");
-      setLoading(false);
-    }, 600);
   };
 
   return (
@@ -135,6 +119,12 @@ export default function Dashboard({
           </div>
         </div>
       </div>
+
+      {loading && (
+        <div style={{ color: "#888", textAlign: "center", padding: 32 }}>
+          Cargando movimientos...
+        </div>
+      )}
 
       {historial.length > 0 && (
         <div style={styles.card}>
@@ -176,7 +166,7 @@ export default function Dashboard({
       <div style={styles.card}>
         <h2 style={styles.cardTitle}>Historial de movimientos</h2>
 
-        {movimientos.length === 0 ? (
+        {!loading && movimientos.length === 0 ? (
           <p style={styles.sinDatos}>Sin movimientos registrados</p>
         ) : (
           <div style={styles.tableContainer}>
@@ -255,55 +245,6 @@ export default function Dashboard({
           </div>
         )}
       </div>
-
-      {mostrarConfirmacion && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <h2 style={styles.modalTitle}>
-              Confirmar operación
-            </h2>
-
-            <p style={styles.modalText}>
-              ¿Deseas realizar{" "}
-              {tipoOperacion === "deposito"
-                ? "el depósito"
-                : "el retiro"}{" "}
-              de{" "}
-              <strong style={{ color: "#c084fc" }}>
-                ${fmt(monto)}
-              </strong>
-              ?
-            </p>
-
-            <div style={styles.modalButtons}>
-              <button
-                style={styles.cancelButton}
-                onClick={() =>
-                  setMostrarConfirmacion(false)
-                }
-              >
-                Cancelar
-              </button>
-
-              <button
-                style={{
-                  ...styles.confirmButton,
-                  opacity: loading ? 0.6 : 1,
-                }}
-                onClick={() => {
-                  realizarOperacion(tipoOperacion);
-                  setMostrarConfirmacion(false);
-                }}
-                disabled={loading}
-              >
-                {loading
-                  ? "Procesando..."
-                  : "Confirmar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

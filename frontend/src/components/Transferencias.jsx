@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styles from "../styles/styles";
 import Campo from "./Campo";
 import { fmt, getMensajeColor } from "../helpers";
@@ -7,6 +7,7 @@ export default function Transferencias({
   usuario,
   setUsuario,
   showToast,
+  fetchAuth,
 }) {
   const [tab, setTab] = useState("nueva");
 
@@ -23,7 +24,24 @@ export default function Transferencias({
   const [modalTx,    setModalTx]    = useState(false);
   const [mensaje,    setMensaje]    = useState({ texto: "", tipo: "" });
 
-  const agregarCuenta = () => {
+  // Cargar cuentas destino guardadas al montar
+  useEffect(() => {
+    cargarCuentasDestino();
+  }, []);
+
+  const cargarCuentasDestino = async () => {
+    try {
+      const res = await fetchAuth("/accounts/destinations");
+      if (res.ok) {
+        const data = await res.json();
+        setCuentasDestino(data);
+      }
+    } catch (err) {
+      // Si falla la carga, seguimos con lista vacía
+    }
+  };
+
+  const agregarCuenta = async () => {
     if (!/^\d{10}$/.test(nuevaCuenta)) {
       showToast("El número de cuenta debe tener exactamente 10 dígitos", "error");
       return;
@@ -33,17 +51,35 @@ export default function Transferencias({
       return;
     }
 
-    setCuentasDestino([
-      ...cuentasDestino,
-      { numero_cuenta: nuevaCuenta, alias: nuevoAlias },
-    ]);
-    showToast("Cuenta agregada exitosamente");
-    setNuevaCuenta("");
-    setNuevoAlias("");
-    setModalAgregar(false);
+    setLoadingAdd(true);
+    try {
+      const res = await fetchAuth("/accounts/destinations", {
+        method: "POST",
+        body: JSON.stringify({
+          numero_cuenta_destino: nuevaCuenta,
+          alias: nuevoAlias,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showToast(data.message || "Error al agregar la cuenta", "error");
+        return;
+      }
+
+      setCuentasDestino((prev) => [...prev, data]);
+      showToast("Cuenta agregada exitosamente");
+      setNuevaCuenta("");
+      setNuevoAlias("");
+      setModalAgregar(false);
+    } catch (err) {
+      showToast("Error de conexión con el servidor", "error");
+    } finally {
+      setLoadingAdd(false);
+    }
   };
 
-  const realizarTransferencia = () => {
+  const realizarTransferencia = async () => {
     if (!destino) {
       showToast("Selecciona una cuenta destino", "error"); return;
     }
@@ -55,23 +91,46 @@ export default function Transferencias({
     }
 
     setLoadingTx(true);
-    setTimeout(() => {
-      setUsuario({
-        ...usuario,
-        saldo: Number(usuario.saldo) - Number(montoTx),
+    try {
+      const res = await fetchAuth("/transfers", {
+        method: "POST",
+        body: JSON.stringify({
+          cuenta_destino: destino,
+          monto: Number(montoTx),
+          mensaje: mensajeTx,
+        }),
       });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMensaje({ texto: data.message || "Error en la transferencia", tipo: "error" });
+        showToast(data.message || "Error en la transferencia", "error");
+        setModalTx(false);
+        return;
+      }
+
+      // Actualizar saldo local
+      setUsuario((prev) => ({
+        ...prev,
+        saldo: Number(prev.saldo) - Number(montoTx),
+      }));
+
       setMensaje({
         texto: "Transferencia realizada exitosamente",
         tipo:  "success",
       });
       showToast("Transferencia realizada exitosamente");
       setDestino(""); setMontoTx(""); setMensajeTx(""); setModalTx(false);
+    } catch (err) {
+      showToast("Error de conexión con el servidor", "error");
+      setModalTx(false);
+    } finally {
       setLoadingTx(false);
-    }, 700);
+    }
   };
 
   const cuentaSeleccionada = cuentasDestino.find(
-    (c) => c.numero_cuenta === destino
+    (c) => (c.numero_cuenta_destino || c.numero_cuenta) === destino
   );
 
   return (
@@ -136,24 +195,27 @@ export default function Transferencias({
               <>
                 <label style={styles.label}>Cuentas guardadas:</label>
                 <div style={styles.cuentasGrid}>
-                  {cuentasDestino.map((c, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        ...styles.cuentaCard,
-                        ...(destino === c.numero_cuenta ? styles.cuentaCardActive : {}),
-                      }}
-                      onClick={() => setDestino(c.numero_cuenta)}
-                    >
-                      <div style={{ fontSize: 20, marginBottom: 4 }}>👤</div>
-                      <div style={{ fontWeight: "bold", color: "#fff", fontSize: 13 }}>
-                        {c.alias}
+                  {cuentasDestino.map((c, i) => {
+                    const numCuenta = c.numero_cuenta_destino || c.numero_cuenta;
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          ...styles.cuentaCard,
+                          ...(destino === numCuenta ? styles.cuentaCardActive : {}),
+                        }}
+                        onClick={() => setDestino(numCuenta)}
+                      >
+                        <div style={{ fontSize: 20, marginBottom: 4 }}>👤</div>
+                        <div style={{ fontWeight: "bold", color: "#fff", fontSize: 13 }}>
+                          {c.alias}
+                        </div>
+                        <div style={{ color: "#555", fontSize: 11 }}>
+                          {numCuenta}
+                        </div>
                       </div>
-                      <div style={{ color: "#555", fontSize: 11 }}>
-                        {c.numero_cuenta}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </>
             )}
@@ -230,17 +292,20 @@ export default function Transferencias({
             <p style={styles.sinDatos}>No tienes cuentas registradas aún</p>
           ) : (
             <div style={styles.cuentasGrid}>
-              {cuentasDestino.map((c, i) => (
-                <div key={i} style={styles.cuentaCardGrande}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>👤</div>
-                  <div style={{ fontWeight: "bold", color: "#fff", fontSize: 16, marginBottom: 4 }}>
-                    {c.alias}
+              {cuentasDestino.map((c, i) => {
+                const numCuenta = c.numero_cuenta_destino || c.numero_cuenta;
+                return (
+                  <div key={i} style={styles.cuentaCardGrande}>
+                    <div style={{ fontSize: 32, marginBottom: 8 }}>👤</div>
+                    <div style={{ fontWeight: "bold", color: "#fff", fontSize: 16, marginBottom: 4 }}>
+                      {c.alias}
+                    </div>
+                    <div style={{ color: "#c084fc", fontSize: 13, fontFamily: "monospace", letterSpacing: 2 }}>
+                      {numCuenta}
+                    </div>
                   </div>
-                  <div style={{ color: "#c084fc", fontSize: 13, fontFamily: "monospace", letterSpacing: 2 }}>
-                    {c.numero_cuenta}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

@@ -5,8 +5,11 @@ import Campo from "./Campo";
 export default function Register({
   onGoLogin,
   showToast,
+  fetchPublico,
 }) {
   const [nombre, setNombre] = useState("");
+  const [curp, setCurp] = useState("");
+  const [telefono, setTelefono] = useState("");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
@@ -14,26 +17,34 @@ export default function Register({
 
   const handleRegister = async () => {
     if (!nombre || !email || !pass) {
-      showToast("Completa todos los campos", "error");
+      showToast("Completa todos los campos obligatorios", "error");
       return;
     }
 
-    const idMock = Math.floor(Math.random() * 999999);
-    const base = `180${String(idMock).padStart(6, "0")}`;
-    const sumaDigitos = base
-      .split("")
-      .reduce((a, d) => a + Number(d), 0);
-
-    const digitoVerif = sumaDigitos % 10;
-    const numeroCuenta = `${base}${digitoVerif}`;
-
     setLoading(true);
+    try {
+      const res = await fetchPublico("/auth/register", {
+        nombre,
+        curp,
+        telefono,
+        email,
+        password: pass,
+      });
+      const data = await res.json();
 
-    setTimeout(() => {
-      setCuentaAsignada(numeroCuenta);
+      if (!res.ok) {
+        showToast(data.message || "Error al crear la cuenta", "error");
+        return;
+      }
+
+      // data: { cliente_id, nombre, email, numero_cuenta, token }
+      setCuentaAsignada(data.numero_cuenta);
       showToast("Cuenta creada exitosamente");
+    } catch (err) {
+      showToast("Error de conexión con el servidor", "error");
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   if (cuentaAsignada) {
@@ -103,7 +114,7 @@ export default function Register({
         El número de cuenta se asigna automáticamente
       </p>
 
-      <Campo label="Nombre completo">
+      <Campo label="Nombre completo *">
         <input
           type="text"
           style={styles.input}
@@ -113,7 +124,27 @@ export default function Register({
         />
       </Campo>
 
-      <Campo label="Correo electrónico">
+      <Campo label="CURP (opcional)">
+        <input
+          type="text"
+          style={styles.input}
+          placeholder="ABCD123456HDFXXX00"
+          value={curp}
+          onChange={(e) => setCurp(e.target.value.toUpperCase())}
+        />
+      </Campo>
+
+      <Campo label="Teléfono (opcional)">
+        <input
+          type="tel"
+          style={styles.input}
+          placeholder="5512345678"
+          value={telefono}
+          onChange={(e) => setTelefono(e.target.value.replace(/\D/g, "").slice(0, 10))}
+        />
+      </Campo>
+
+      <Campo label="Correo electrónico *">
         <input
           type="email"
           style={styles.input}
@@ -123,7 +154,7 @@ export default function Register({
         />
       </Campo>
 
-      <Campo label="Contraseña">
+      <Campo label="Contraseña *">
         <input
           type="password"
           style={styles.input}

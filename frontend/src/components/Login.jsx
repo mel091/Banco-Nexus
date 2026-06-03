@@ -1,29 +1,60 @@
 import { useState } from "react";
 import styles from "../styles/styles";
 import Campo from "./Campo";
-import { USUARIO_MOCK, CREDENCIALES_MOCK } from "../helpers";
 
 export default function Login({
   onLogin,
   onGoRegister,
   showToast,
+  fetchPublico,
 }) {
-  const [email, setEmail] = useState("admin@nexus.com");
-  const [pass, setPass] = useState("123456");
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !pass) {
       showToast("Completa todos los campos", "error");
       return;
     }
 
-    if (
-      email === CREDENCIALES_MOCK.email &&
-      pass === CREDENCIALES_MOCK.password
-    ) {
-      onLogin("token-prueba", USUARIO_MOCK);
-    } else {
-      showToast("Correo o contraseña incorrectos", "error");
+    setLoading(true);
+    try {
+      const res = await fetchPublico("/auth/login", { email, password: pass });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showToast(data.message || "Correo o contraseña incorrectos", "error");
+        return;
+      }
+
+      // data: { cliente_id, nombre, email, token }
+      // Cargamos también la cuenta para tener saldo y numero_cuenta
+      const resProfile = await fetch(
+        `${import.meta.env.VITE_API_URL || "/api"}/auth/profile`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${data.token}`,
+          },
+        }
+      );
+      const profile = await resProfile.json();
+
+      const usuario = {
+        nombre:        profile.nombre,
+        email:         profile.email,
+        numero_cuenta: profile.cuenta?.numero_cuenta || "",
+        saldo:         profile.cuenta?.saldo ?? 0,
+        tipo:          profile.cuenta?.tipo || "Debito",
+        estado:        profile.cuenta?.estado || "activa",
+      };
+
+      onLogin(data.token, usuario);
+    } catch (err) {
+      showToast("Error de conexión con el servidor", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -60,21 +91,12 @@ export default function Login({
         />
       </Campo>
 
-      <p
-        style={{
-          color: "#3b3b3b",
-          fontSize: 12,
-          marginBottom: 16,
-          fontFamily: "monospace",
-        }}
-      >
-      </p>
-
       <button
-        style={styles.btnPrimario}
+        style={{ ...styles.btnPrimario, opacity: loading ? 0.6 : 1 }}
         onClick={handleLogin}
+        disabled={loading}
       >
-        Entrar
+        {loading ? "Ingresando..." : "Entrar"}
       </button>
 
       <p style={styles.authLink}>

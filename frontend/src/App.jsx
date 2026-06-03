@@ -36,7 +36,7 @@ export default function BancoNexus() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  // ── Helpers de fetch (para usar cuando haya backend) ──
+  // ── Helpers de fetch ──
   const fetchPublico = async (path, body) => {
     const inicio = Date.now();
     const res = await fetch(`${API}${path}`, {
@@ -142,7 +142,7 @@ export default function BancoNexus() {
                 usuario={usuario}
                 setUsuario={setUsuario}
                 showToast={showToast}
-                // fetchAuth={fetchAuth}
+                fetchAuth={fetchAuth}
               />
             )}
 
@@ -151,7 +151,7 @@ export default function BancoNexus() {
                 usuario={usuario}
                 setUsuario={setUsuario}
                 showToast={showToast}
-                // fetchAuth={fetchAuth}
+                fetchAuth={fetchAuth}
               />
             )}
 
@@ -160,7 +160,7 @@ export default function BancoNexus() {
                 usuario={usuario}
                 setUsuario={setUsuario}
                 showToast={showToast}
-                // fetchAuth={fetchAuth}
+                fetchAuth={fetchAuth}
               />
             )}
           </main>
@@ -185,7 +185,7 @@ export default function BancoNexus() {
                 setVista("dashboard");
               }}
               onGoRegister={() => setVista("register")}
-              // fetchPublico={fetchPublico}
+              fetchPublico={fetchPublico}
             />
           )}
 
@@ -193,7 +193,7 @@ export default function BancoNexus() {
             <Register
               showToast={showToast}
               onGoLogin={() => setVista("login")}
-              // fetchPublico={fetchPublico}
+              fetchPublico={fetchPublico}
             />
           )}
         </div>
