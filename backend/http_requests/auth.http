@@ -1,0 +1,29 @@
+@baseUrl = http://localhost:3000/api
+
+###
+# @name registerUser
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "nombre": "Test User",
+  "curp": "TEST123456XXXXXX02",
+  "telefono": "5551234567",
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+###
+# @name loginUser
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "amy@gmail.com",
+  "password": "secret"
+}
+
+###
+# @name getUserProfile
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{loginUser.response.body.token}}

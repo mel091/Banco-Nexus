@@ -8,8 +8,8 @@ export default function Login({
   onGoRegister,
   showToast,
 }) {
-  const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
+  const [email, setEmail] = useState("admin@nexus.com");
+  const [pass, setPass] = useState("123456");
 
   const handleLogin = () => {
     if (!email || !pass) {

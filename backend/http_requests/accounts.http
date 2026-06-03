@@ -1,0 +1,38 @@
+@baseUrl = http://localhost:3000/api
+
+###
+# First, you need to login to get a token
+# @name loginUser
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "amy@gmail.com",
+  "password": "secret"
+}
+
+###
+# @name getDashboard
+GET {{baseUrl}}/accounts/dashboard
+Authorization: Bearer {{loginUser.response.body.token}}
+
+###
+# @name getTransactions
+GET {{baseUrl}}/accounts/transactions
+Authorization: Bearer {{loginUser.response.body.token}}
+
+###
+# @name addDestinationAccount
+POST {{baseUrl}}/accounts/destinations
+Authorization: Bearer {{loginUser.response.body.token}}
+Content-Type: application/json
+
+{
+  "numero_cuenta_destino": "4716902311452201", 
+  "alias": "Cuenta Natanael"
+}
+
+###
+# @name getDestinationAccounts
+GET {{baseUrl}}/accounts/destinations
+Authorization: Bearer {{loginUser.response.body.token}}

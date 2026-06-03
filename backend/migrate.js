@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { ObjectId } from "mongodb";
 import connectDB from "./config/database.js";
+import bcrypt from "bcryptjs";
 
 dotenv.config();
 
@@ -102,6 +103,9 @@ async function crearBaseDeDatos() {
       }
     );
 
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash("secret", salt);
+
     // CLIENTES
     const clientes = [
       {
@@ -110,6 +114,7 @@ async function crearBaseDeDatos() {
         curp: "MAGA010203HBCRRN01",
         telefono: "6121234567",
         email: "amy@gmail.com",
+        password: hashedPassword,
         fecha_registro: new Date(),
         estado: true,
       },
@@ -120,6 +125,7 @@ async function crearBaseDeDatos() {
         curp: "HEGN990101MBCPRS02",
         telefono: "6129876543",
         email: "natanael@gmail.com",
+        password: hashedPassword,
         fecha_registro: new Date(),
         estado: true,
       },
@@ -130,6 +136,7 @@ async function crearBaseDeDatos() {
         curp: "RASA950505HBCRTL03",
         telefono: "6124567890",
         email: "andres@gmail.com",
+        password: hashedPassword,
         fecha_registro: new Date(),
         estado: true,
       },
@@ -140,6 +147,7 @@ async function crearBaseDeDatos() {
         curp: "SOOC980808MBCNTN04",
         telefono: "6126543210",
         email: "carmen@gmail.com",
+        password: hashedPassword,
         fecha_registro: new Date(),
         estado: true,
       },
@@ -150,6 +158,7 @@ async function crearBaseDeDatos() {
         curp: "RINO920202HBCRGS05",
         telefono: "6121112233",
         email: "omar@gmail.com",
+        password: hashedPassword,
         fecha_registro: new Date(),
         estado: true,
       },

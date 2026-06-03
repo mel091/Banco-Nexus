@@ -1,0 +1,24 @@
+@baseUrl = http://localhost:3000/api
+
+###
+# Login to get token for Amy (Origin)
+# @name loginUser
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "amy@gmail.com",
+  "password": "secret"
+}
+
+###
+# @name executeTransfer
+POST {{baseUrl}}/transfers
+Authorization: Bearer {{loginUser.response.body.token}}
+Content-Type: application/json
+
+{
+  "cuenta_destino": "4539148803436467",
+  "monto": 500,
+  "mensaje": "Pago por cena"
+}
