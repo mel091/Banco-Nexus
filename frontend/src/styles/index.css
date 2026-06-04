@@ -7,3 +7,35 @@ body,
   min-height: 100%;
   background-color: #050505;
 }
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* ── Responsividad del layout ── */
+@media (max-width: 600px) {
+  /* El contenido principal reduce su padding en móvil */
+  main {
+    padding: 16px 14px !important;
+  }
+
+  /* Las cards internas apilan su header verticalmente */
+  .top-section {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+
+  /* El balance se alinea a la izquierda en móvil */
+  .balance-container {
+    text-align: left !important;
+  }
+
+  /* Tabla — permite scroll horizontal sin romper layout */
+  .table-container {
+    overflow-x: auto;
+  }
+}

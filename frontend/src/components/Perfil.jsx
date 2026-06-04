@@ -5,7 +5,7 @@ import Campo from "./Campo";
 export default function Perfil({
   usuario,
   setUsuario,
-  showToast,
+  showModal,
   fetchAuth,
 }) {
   const [nombre, setNombre] = useState(usuario?.nombre || "");
@@ -47,7 +47,7 @@ export default function Perfil({
 
   const guardarPerfil = () => {
     if (!nombre.trim()) {
-      showToast("El nombre no puede estar vacío", "error");
+      showModal("error", "Nombre inválido", "El nombre no puede estar vacío.");
       return;
     }
 
@@ -60,7 +60,7 @@ export default function Perfil({
         ...usuario,
         nombre,
       });
-      showToast("Perfil actualizado");
+      showModal("success", "¡Perfil actualizado!", "Tus datos fueron guardados correctamente.");
       setLoading(false);
     }, 500);
   };

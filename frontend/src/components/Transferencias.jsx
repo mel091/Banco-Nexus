@@ -6,7 +6,7 @@ import { fmt, getMensajeColor } from "../helpers";
 export default function Transferencias({
   usuario,
   setUsuario,
-  showToast,
+  showModal,
   fetchAuth,
 }) {
   const [tab, setTab] = useState("nueva");
@@ -43,11 +43,11 @@ export default function Transferencias({
 
   const agregarCuenta = async () => {
     if (!/^\d{10}$/.test(nuevaCuenta)) {
-      showToast("El número de cuenta debe tener exactamente 10 dígitos", "error");
+      showModal("error", "Número inválido", "El número de cuenta debe tener exactamente 10 dígitos.");
       return;
     }
     if (!nuevoAlias.trim()) {
-      showToast("Ingresa un alias", "error");
+      showModal("error", "Alias requerido", "Ingresa un alias para identificar esta cuenta.");
       return;
     }
 
@@ -63,17 +63,17 @@ export default function Transferencias({
       const data = await res.json();
 
       if (!res.ok) {
-        showToast(data.message || "Error al agregar la cuenta", "error");
+        showModal("error", "Error al agregar cuenta", data.message || "No se pudo agregar la cuenta destino.");
         return;
       }
 
       setCuentasDestino((prev) => [...prev, data]);
-      showToast("Cuenta agregada exitosamente");
+      showModal("success", "¡Cuenta agregada!", "La cuenta destino fue guardada exitosamente.");
       setNuevaCuenta("");
       setNuevoAlias("");
       setModalAgregar(false);
     } catch (err) {
-      showToast("Error de conexión con el servidor", "error");
+      showModal("error", "Error de conexión", "No se pudo conectar con el servidor. Intenta de nuevo.");
     } finally {
       setLoadingAdd(false);
     }
@@ -81,13 +81,13 @@ export default function Transferencias({
 
   const realizarTransferencia = async () => {
     if (!destino) {
-      showToast("Selecciona una cuenta destino", "error"); return;
+      showModal("error", "Cuenta requerida", "Selecciona una cuenta destino."); return;
     }
     if (!montoTx || Number(montoTx) <= 0) {
-      showToast("Monto inválido", "error"); return;
+      showModal("error", "Monto inválido", "Ingresa un monto mayor a cero."); return;
     }
     if (Number(montoTx) > Number(usuario?.saldo || 0)) {
-      showToast("Saldo insuficiente", "error"); return;
+      showModal("error", "Saldo insuficiente", `No tienes saldo suficiente. Tu saldo disponible es $${Number(usuario?.saldo || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })} MXN.`); return;
     }
 
     setLoadingTx(true);
@@ -103,8 +103,7 @@ export default function Transferencias({
       const data = await res.json();
 
       if (!res.ok) {
-        setMensaje({ texto: data.message || "Error en la transferencia", tipo: "error" });
-        showToast(data.message || "Error en la transferencia", "error");
+        showModal("error", "Error en la transferencia", data.message || "No se pudo completar la transferencia. Intenta de nuevo.");
         setModalTx(false);
         return;
       }
@@ -115,14 +114,10 @@ export default function Transferencias({
         saldo: Number(prev.saldo) - Number(montoTx),
       }));
 
-      setMensaje({
-        texto: "Transferencia realizada exitosamente",
-        tipo:  "success",
-      });
-      showToast("Transferencia realizada exitosamente");
+      showModal("success", "¡Transferencia exitosa!", `Se enviaron $${Number(montoTx).toLocaleString("es-MX", { minimumFractionDigits: 2 })} MXN a la cuenta ${destino} correctamente.`);
       setDestino(""); setMontoTx(""); setMensajeTx(""); setModalTx(false);
     } catch (err) {
-      showToast("Error de conexión con el servidor", "error");
+      showModal("error", "Error de conexión", "No se pudo conectar con el servidor. Verifica tu conexión e intenta de nuevo.");
       setModalTx(false);
     } finally {
       setLoadingTx(false);
