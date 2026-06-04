@@ -18,7 +18,7 @@ Authorization: Bearer {{loginUser.response.body.token}}
 Content-Type: application/json
 
 {
-  "cuenta_destino": "4539148803436467",
+  "cuenta_destino": "1800000054",
   "monto": 500,
   "mensaje": "Pago por cena"
 }

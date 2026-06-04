@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb';
 import Account from '../models/Account.js';
 import Transaction from '../models/Transaction.js';
 import { logEvent } from '../middleware/auditMiddleware.js';
+import { isValidAccountNumber } from '../utils/accountUtils.js';
 
 const handleMongoError = (error, res) => {
   console.error(error);
@@ -12,6 +13,10 @@ const handleMongoError = (error, res) => {
 export const executeTransfer = async (req, res) => {
   try {
     const { cuenta_destino, monto, mensaje } = req.body;
+
+    if (!cuenta_destino || !isValidAccountNumber(cuenta_destino)) {
+      return res.status(400).json({ message: 'Formato de cuenta destino inválido' });
+    }
 
     if (!monto || Number(monto) <= 0) {
       return res.status(400).json({ message: 'Monto inválido' });

@@ -175,7 +175,7 @@ async function crearBaseDeDatos() {
       {
         cuenta_id: new ObjectId(),
         cliente_id: clientes[0].cliente_id,
-        numero_cuenta: "4152314600875820",
+        numero_cuenta: "1800000010",
         tipo: "Debito",
         saldo: 12500,
         estado: "activa",
@@ -185,7 +185,7 @@ async function crearBaseDeDatos() {
       {
         cuenta_id: new ObjectId(),
         cliente_id: clientes[1].cliente_id,
-        numero_cuenta: "4539148803436467",
+        numero_cuenta: "1800000021",
         tipo: "Ahorro",
         saldo: 8500,
         estado: "activa",
@@ -195,7 +195,7 @@ async function crearBaseDeDatos() {
       {
         cuenta_id: new ObjectId(),
         cliente_id: clientes[2].cliente_id,
-        numero_cuenta: "4716902311452201",
+        numero_cuenta: "1800000032",
         tipo: "Debito",
         saldo: 15400,
         estado: "activa",
@@ -205,7 +205,7 @@ async function crearBaseDeDatos() {
       {
         cuenta_id: new ObjectId(),
         cliente_id: clientes[3].cliente_id,
-        numero_cuenta: "4024781299003312",
+        numero_cuenta: "1800000043",
         tipo: "Ahorro",
         saldo: 7200,
         estado: "activa",
@@ -215,7 +215,7 @@ async function crearBaseDeDatos() {
       {
         cuenta_id: new ObjectId(),
         cliente_id: clientes[4].cliente_id,
-        numero_cuenta: "4485672155001199",
+        numero_cuenta: "1800000054",
         tipo: "Debito",
         saldo: 9800,
         estado: "activa",

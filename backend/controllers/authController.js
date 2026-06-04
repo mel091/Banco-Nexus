@@ -4,15 +4,19 @@ import { ObjectId } from 'mongodb';
 import Client from '../models/Client.js';
 import Account from '../models/Account.js';
 import { logEvent } from '../middleware/auditMiddleware.js';
+import { generateAccountNumberBase } from '../utils/accountUtils.js';
 
 const generateAccountNumber = async () => {
   let isUnique = false;
   let newNumber = '';
+  let count = (await Account.countDocuments()) + 1;
   while (!isUnique) {
-    newNumber = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+    newNumber = generateAccountNumberBase(count);
     const existing = await Account.findOne({ numero_cuenta: newNumber });
     if (!existing) {
       isUnique = true;
+    } else {
+      count++;
     }
   }
   return newNumber;

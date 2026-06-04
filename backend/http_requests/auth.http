@@ -10,7 +10,7 @@ Content-Type: application/json
   "curp": "TEST123456XXXXXX02",
   "telefono": "5551234567",
   "email": "test@example.com",
-  "password": "password123"
+  "password": "secret"
 }
 
 ###
