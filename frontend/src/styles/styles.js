@@ -1,6 +1,7 @@
 const styles = {
   appRoot: {
-    minHeight: "100vh",
+    height: "100vh",
+    width: "100vw",
     backgroundColor: "#050505",
     color: "white",
     fontFamily: "Arial",
@@ -25,25 +26,95 @@ const styles = {
   // ── LAYOUT ──
   layout: {
     display: "flex",
-    minHeight: "100vh",
+    height: "100vh",
+    width: "100vw",
+    overflow: "hidden",
     position: "relative",
     zIndex: 1,
+  },
+
+  mainWrapper: {
+    flex: 1,
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
     overflow: "hidden",
   },
 
-  // ── SIDEBAR ──
+  // ── TOPBAR MOBILE ──
+  mobileTopbar: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: "12px 16px",
+    backgroundColor: "#080808",
+    borderBottom: "1px solid #111",
+    flexShrink: 0,
+    zIndex: 10,
+  },
+
+  mobileTopbarLogo: {
+    color: "#e0e0e0",
+    fontSize: 16,
+  },
+
+  hamburgerBtn: {
+    background: "none",
+    border: "1px solid #1a1a1a",
+    borderRadius: 8,
+    padding: "6px 8px",
+    cursor: "pointer",
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+    flexShrink: 0,
+  },
+
+  hamburgerLine: {
+    display: "block",
+    width: 18,
+    height: 2,
+    backgroundColor: "#a855f7",
+    borderRadius: 2,
+  },
+
+  // ── SIDEBAR DESKTOP ──
   sidebar: {
     backgroundColor: "#080808",
     borderRight: "1px solid #111",
     display: "flex",
     flexDirection: "column",
     padding: "24px 0",
+    boxSizing: "border-box",
     transition: "width 0.2s ease",
     overflow: "hidden",
     flexShrink: 0,
-    position: "sticky",
-    top: 0,
     height: "100vh",
+  },
+
+  // ── SIDEBAR MOBILE (drawer flotante) ──
+  sidebarOverlay: {
+    position: "fixed",
+    inset: 0,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    zIndex: 100,
+  },
+
+  sidebarMobile: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: 240,
+    height: "100vh",
+    backgroundColor: "#080808",
+    borderRight: "1px solid #1a1a1a",
+    display: "flex",
+    flexDirection: "column",
+    padding: "24px 0",
+    boxSizing: "border-box",
+    zIndex: 101,
+    transition: "transform 0.25s ease",
+    overflowY: "auto",
   },
 
   sidebarLogo: {
@@ -165,7 +236,8 @@ const styles = {
   main: {
     flex: 1,
     minWidth: 0,
-    padding: "30px 36px",
+    minHeight: 0,
+    padding: "24px clamp(14px, 4vw, 36px)",
     overflowY: "auto",
     overflowX: "hidden",
     boxSizing: "border-box",
@@ -180,12 +252,15 @@ const styles = {
 
   // ── VISTAS PÚBLICAS ──
   publicWrap: {
+    height: "100vh",
+    overflowY: "auto",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     padding: "40px 24px",
     position: "relative",
     zIndex: 1,
+    boxSizing: "border-box",
   },
 
   publicLogo: {
@@ -300,7 +375,7 @@ const styles = {
     backgroundColor: "#0e0e0e",
     border: "1px solid #7e22ce",
     borderRadius: 20,
-    padding: 28,
+    padding: "clamp(16px, 3vw, 28px)",
     marginBottom: 24,
   },
 
@@ -309,7 +384,7 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: 20,
+    gap: 16,
   },
 
   userRow: {
@@ -356,7 +431,7 @@ const styles = {
   },
 
   balance: {
-    fontSize: 48,
+    fontSize: "clamp(28px, 5vw, 48px)",
     margin: 0,
     color: "#c084fc",
     fontWeight: "bold",
@@ -383,7 +458,7 @@ const styles = {
   },
 
   tableContainer: {
-    maxHeight: "280px",
+    maxHeight: "200px",
     overflowY: "auto",
     overflowX: "auto",
     borderRadius: "10px",
@@ -569,11 +644,52 @@ const styles = {
     maxWidth: 420,
   },
 
+  modalError: {
+    backgroundColor: "#0e0e0e",
+    border: "1px solid #ef4444",
+    borderRadius: 20,
+    padding: 32,
+    width: "90%",
+    maxWidth: 420,
+  },
+
+  modalSuccess: {
+    backgroundColor: "#0e0e0e",
+    border: "1px solid #22c55e",
+    borderRadius: 20,
+    padding: 32,
+    width: "90%",
+    maxWidth: 420,
+    textAlign: "center",
+  },
+
   modalTitle: {
     color: "#c084fc",
     marginTop: 0,
     marginBottom: 16,
     fontSize: 20,
+  },
+
+  modalTitleError: {
+    color: "#f87171",
+    marginTop: 0,
+    marginBottom: 16,
+    fontSize: 20,
+    textAlign: "center",
+  },
+
+  modalTitleSuccess: {
+    color: "#4ade80",
+    marginTop: 0,
+    marginBottom: 16,
+    fontSize: 20,
+    textAlign: "center",
+  },
+
+  modalIcon: {
+    fontSize: 52,
+    marginBottom: 16,
+    display: "block",
   },
 
   modalText: {
@@ -587,6 +703,13 @@ const styles = {
     display: "flex",
     gap: 12,
     justifyContent: "flex-end",
+  },
+
+  modalButtonsCenter: {
+    display: "flex",
+    gap: 12,
+    justifyContent: "center",
+    marginTop: 8,
   },
 
   cancelButton: {
@@ -604,6 +727,28 @@ const styles = {
     border: "none",
     borderRadius: 10,
     background: "linear-gradient(90deg,#7e22ce,#a855f7)",
+    color: "white",
+    fontWeight: "bold",
+    cursor: "pointer",
+    fontSize: 14,
+  },
+
+  errorButton: {
+    padding: "11px 24px",
+    border: "none",
+    borderRadius: 10,
+    background: "linear-gradient(90deg,#991b1b,#ef4444)",
+    color: "white",
+    fontWeight: "bold",
+    cursor: "pointer",
+    fontSize: 14,
+  },
+
+  successButton: {
+    padding: "11px 32px",
+    border: "none",
+    borderRadius: 10,
+    background: "linear-gradient(90deg,#15803d,#22c55e)",
     color: "white",
     fontWeight: "bold",
     cursor: "pointer",

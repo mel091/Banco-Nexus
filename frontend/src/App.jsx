@@ -1,8 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// App.jsx — Orquestador principal de Banco Nexus
-// Maneja: estado global, toast, sidebar, enrutamiento entre vistas
-// ─────────────────────────────────────────────────────────────────────────────
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import styles          from "./styles/styles";
 import Sidebar         from "./components/Sidebar";
@@ -11,9 +7,10 @@ import Register        from "./components/Register";
 import Dashboard       from "./components/Dashboard";
 import Transferencias  from "./components/Transferencias";
 import Perfil          from "./components/Perfil";
+import Modal           from "./components/Modal";
 
-// URL base del backend (se define en .env como VITE_API_URL)
 const API = import.meta.env.VITE_API_URL || "/api";
+const MOBILE_BP = 768;
 
 export default function BancoNexus() {
   // ── Estado global ──
@@ -24,17 +21,37 @@ export default function BancoNexus() {
   // ── Sidebar ──
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // ── Detección mobile ──
+  const [mobile, setMobile] = useState(window.innerWidth < MOBILE_BP);
+  useEffect(() => {
+    const onResize = () => {
+      const isMobile = window.innerWidth < MOBILE_BP;
+      setMobile(isMobile);
+      // En desktop siempre empieza abierto; en mobile siempre cerrado
+      if (!isMobile) setSidebarOpen(true);
+      else setSidebarOpen(false);
+    };
+    window.addEventListener("resize", onResize);
+    // Inicializar estado correcto
+    onResize();
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   // ── Infraestructura / monitoreo ──
   const [latencia,      setLatencia]      = useState(null);
   const [alertaReplica, setAlertaReplica] = useState("");
 
-  // ── Toast ──
+  // ── Toast (solo para info no crítica) ──
   const [toast, setToast] = useState(null);
-
   const showToast = (texto, tipo = "success") => {
     setToast({ texto, tipo });
     setTimeout(() => setToast(null), 4000);
   };
+
+  // ── Modal de feedback (error / éxito) ──
+  const [feedbackModal, setFeedbackModal] = useState(null);
+  const showModal = (tipo, titulo, texto) => setFeedbackModal({ tipo, titulo, texto });
+  const closeModal = () => setFeedbackModal(null);
 
   // ── Helpers de fetch ──
   const fetchPublico = async (path, body) => {
@@ -79,47 +96,38 @@ export default function BancoNexus() {
 
   const loggedIn = !!token;
 
-  // ────────────────────────────────────────────────────────────────────────────
   return (
     <div style={styles.appRoot}>
-
-      {/* Fondo decorativo */}
       <div style={styles.bgGlow} />
 
       {/* Toast global */}
       {toast && (
-        <div
-          style={{
-            ...styles.toast,
-            borderColor: toast.tipo === "error" ? "#ef4444" : "#a855f7",
-          }}
-        >
-          <span
-            style={{
-              color:       toast.tipo === "error" ? "#f87171" : "#4ade80",
-              marginRight: 8,
-            }}
-          >
+        <div style={{ ...styles.toast, borderColor: toast.tipo === "error" ? "#ef4444" : "#a855f7" }}>
+          <span style={{ color: toast.tipo === "error" ? "#f87171" : "#4ade80", marginRight: 8 }}>
             {toast.tipo === "error" ? "✕" : "✓"}
           </span>
           {toast.texto}
         </div>
       )}
 
+      {/* Modal de feedback */}
+      {feedbackModal && (
+        <Modal
+          tipo={feedbackModal.tipo}
+          titulo={feedbackModal.titulo}
+          texto={feedbackModal.texto}
+          onClose={closeModal}
+        />
+      )}
+
       {/* Alerta réplica / latencia */}
       {alertaReplica && (
         <div style={styles.alertaReplica}>
           ⚠ {alertaReplica}
-          <button
-            style={styles.alertaClose}
-            onClick={() => setAlertaReplica("")}
-          >
-            ×
-          </button>
+          <button style={styles.alertaClose} onClick={() => setAlertaReplica("")}>×</button>
         </div>
       )}
 
-      {/* ── Layout autenticado ── */}
       {loggedIn ? (
         <div style={styles.layout}>
 
@@ -128,46 +136,67 @@ export default function BancoNexus() {
             setVista={setVista}
             open={sidebarOpen}
             setOpen={setSidebarOpen}
+            mobile={mobile}
             usuario={usuario}
             onLogout={logout}
           />
 
-          <main style={styles.main}>
-            {latencia && (
-              <div style={styles.latencia}>⏱ {latencia} ms</div>
+          <div style={styles.mainWrapper}>
+            {/* Topbar mobile con botón hamburguesa */}
+            {mobile && (
+              <div style={styles.mobileTopbar}>
+                <button
+                  style={styles.hamburgerBtn}
+                  onClick={() => setSidebarOpen(true)}
+                  aria-label="Abrir menú"
+                >
+                  <span style={styles.hamburgerLine} />
+                  <span style={styles.hamburgerLine} />
+                  <span style={styles.hamburgerLine} />
+                </button>
+                <span style={styles.mobileTopbarLogo}>
+                  <span style={{ color: "#a855f7" }}>⬡</span> Banco <strong>Nexus</strong>
+                </span>
+              </div>
             )}
 
-            {vista === "dashboard" && (
-              <Dashboard
-                usuario={usuario}
-                setUsuario={setUsuario}
-                showToast={showToast}
-                fetchAuth={fetchAuth}
-              />
-            )}
+            <main style={styles.main}>
+              {latencia && (
+                <div style={styles.latencia}>⏱ {latencia} ms</div>
+              )}
 
-            {vista === "transferencias" && (
-              <Transferencias
-                usuario={usuario}
-                setUsuario={setUsuario}
-                showToast={showToast}
-                fetchAuth={fetchAuth}
-              />
-            )}
+              {vista === "dashboard" && (
+                <Dashboard
+                  usuario={usuario}
+                  setUsuario={setUsuario}
+                  showToast={showToast}
+                  showModal={showModal}
+                  fetchAuth={fetchAuth}
+                />
+              )}
 
-            {vista === "perfil" && (
-              <Perfil
-                usuario={usuario}
-                setUsuario={setUsuario}
-                showToast={showToast}
-                fetchAuth={fetchAuth}
-              />
-            )}
-          </main>
+              {vista === "transferencias" && (
+                <Transferencias
+                  usuario={usuario}
+                  setUsuario={setUsuario}
+                  showModal={showModal}
+                  fetchAuth={fetchAuth}
+                />
+              )}
+
+              {vista === "perfil" && (
+                <Perfil
+                  usuario={usuario}
+                  setUsuario={setUsuario}
+                  showModal={showModal}
+                  fetchAuth={fetchAuth}
+                />
+              )}
+            </main>
+          </div>
         </div>
 
       ) : (
-        /* ── Vistas públicas ── */
         <div style={styles.publicWrap}>
           <div style={styles.publicLogo}>
             <span style={styles.logoIcon}>⬡</span>
@@ -178,7 +207,7 @@ export default function BancoNexus() {
 
           {vista === "login" && (
             <Login
-              showToast={showToast}
+              showModal={showModal}
               onLogin={(tk, user) => {
                 setToken(tk);
                 setUsuario(user);
@@ -191,7 +220,7 @@ export default function BancoNexus() {
 
           {vista === "register" && (
             <Register
-              showToast={showToast}
+              showModal={showModal}
               onGoLogin={() => setVista("login")}
               fetchPublico={fetchPublico}
             />

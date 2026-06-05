@@ -5,7 +5,7 @@ import Campo from "./Campo";
 export default function Login({
   onLogin,
   onGoRegister,
-  showToast,
+  showModal,
   fetchPublico,
 }) {
   const [email, setEmail] = useState("");
@@ -14,7 +14,7 @@ export default function Login({
 
   const handleLogin = async () => {
     if (!email || !pass) {
-      showToast("Completa todos los campos", "error");
+      showModal("error", "Campos incompletos", "Por favor ingresa tu correo y contraseña.");
       return;
     }
 
@@ -24,7 +24,7 @@ export default function Login({
       const data = await res.json();
 
       if (!res.ok) {
-        showToast(data.message || "Correo o contraseña incorrectos", "error");
+        showModal("error", "Error al iniciar sesión", data.message || "Correo o contraseña incorrectos.");
         return;
       }
 
@@ -52,7 +52,7 @@ export default function Login({
 
       onLogin(data.token, usuario);
     } catch (err) {
-      showToast("Error de conexión con el servidor", "error");
+      showModal("error", "Error de conexión", "No se pudo conectar con el servidor. Verifica tu conexión e intenta de nuevo.");
     } finally {
       setLoading(false);
     }

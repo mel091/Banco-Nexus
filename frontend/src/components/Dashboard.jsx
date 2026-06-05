@@ -130,7 +130,7 @@ export default function Dashboard({
         <div style={styles.card}>
           <h2 style={styles.cardTitle}>Evolución del saldo</h2>
 
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={200}>
             <LineChart data={historial}>
               <CartesianGrid stroke="#1a1a1a" strokeDasharray="3 3" />
 
