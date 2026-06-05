@@ -166,7 +166,7 @@ const styles = {
     padding: "11px 12px",
     borderRadius: 10,
     border: "none",
-    background: "none",
+    backgroundColor: "transparent",
     color: "#555",
     cursor: "pointer",
     fontSize: 14,
@@ -176,7 +176,7 @@ const styles = {
   },
 
   navItemActive: {
-    backgroundColor: "rgba(126,34,206,0.15)",
+    backgroundColor: "rgba(103, 75, 206, 0.15)",
     color: "#c084fc",
   },
 
