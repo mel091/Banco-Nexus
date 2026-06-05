@@ -358,7 +358,7 @@ const styles = {
     padding: "8px 18px",
     border: "1px solid #1a1a1a",
     borderRadius: 8,
-    background: "none",
+    backgroundColor: "transparent",
     color: "#555",
     cursor: "pointer",
     fontSize: 14,

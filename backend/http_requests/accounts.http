@@ -1,4 +1,4 @@
-@baseUrl = http://localhost:3000/api
+@baseUrl = http://3.234.16.193:3000/api
 
 ###
 # First, you need to login to get a token
@@ -28,7 +28,7 @@ Authorization: Bearer {{loginUser.response.body.token}}
 Content-Type: application/json
 
 {
-  "numero_cuenta_destino": "4716902311452201", 
+  "numero_cuenta_destino": "1800000032", 
   "alias": "Cuenta Natanael"
 }
 
